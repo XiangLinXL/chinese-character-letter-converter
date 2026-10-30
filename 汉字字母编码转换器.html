@@ -1,0 +1,250 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汉字字母编码转换器</title>
+    <style>
+        body { font-family: sans-serif; padding: 15px; background: #f0f2f5; }
+        .main-title { text-align: center; font-size: 22px; font-weight: bold; color: #333; margin: 10px 0 20px 0; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        h2 { text-align: left; color: #333; font-size: 16px; margin-top: 0; margin-bottom: 10px; font-weight: bold; }
+        
+        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        
+        /* 确保输入框可以长按选择 */
+        input[type="text"] { 
+            flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; 
+            box-sizing: border-box; font-size: 16px; min-width: 0;
+            -webkit-user-select: text; user-select: text; /* 开启原生选择 */
+        }
+        
+        button { padding: 10px 15px; background: #1890ff; color: white; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; white-space: nowrap; }
+        button:active { background: #096dd9; }
+        .btn-green { background: #52c41a; }
+        .btn-green:active { background: #389e0d; }
+        .btn-grey { background: #8c8c8c; }
+        .btn-grey:active { background: #595959; }
+        
+        .result-box { margin-top: 15px; padding: 15px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 5px; display: none; }
+        
+        /* 确保输出结果区域可以长按选择 */
+        .result-content { 
+            font-size: 16px; word-break: break-all; line-height: 1.6; 
+            margin-bottom: 10px; color: #333; min-height: 24px;
+            -webkit-user-select: text; user-select: text; /* 开启原生选择 */
+        }
+        
+        .error-box { background: #fff1f0; border-color: #ffa39e; color: #cf1322; }
+        #status { font-size: 14px; color: #1890ff; margin-top: 10px; }
+
+        /* 轻提示 (Toast) 的样式 */
+        .toast {
+            visibility: hidden; min-width: 120px; background-color: rgba(0, 0, 0, 0.75);
+            color: #fff; text-align: center; border-radius: 20px; padding: 10px 20px;
+            position: fixed; z-index: 999; left: 50%; bottom: 50px;
+            transform: translateX(-50%); font-size: 15px; opacity: 0;
+            transition: opacity 0.3s, bottom 0.3s;
+        }
+        .toast.show { visibility: visible; opacity: 1; bottom: 80px; }
+    </style>
+</head>
+<body>
+
+    <div class="main-title">汉字字母编码转换器</div>
+
+    <div class="card">
+        <h2>1. 加载字典</h2>
+        <input type="file" id="fileInput" accept=".txt" style="width: 100%; margin-bottom: 10px; font-size: 14px;">
+        <button class="btn-green" style="width: 100%;" onclick="loadDemo()">没有文件？点我加载演示数据</button>
+        <div id="status">等待加载数据...</div>
+    </div>
+
+    <div class="card">
+        <h2>2. 实时转换</h2>
+        <div class="input-group">
+            <input type="text" id="queryInput" placeholder="输入汉字或编码，实时转换" oninput="doQuery()">
+            <button class="btn-grey" onclick="copyText('queryInput')">复制</button>
+        </div>
+        
+        <div id="resultBox" class="result-box">
+            <!-- 这个 div 现在也支持长按全选或部分选中了 -->
+            <div id="resultContent" class="result-content"></div>
+            <button style="width: 100%;" onclick="copyText('resultContent')">一键复制结果</button>
+        </div>
+    </div>
+
+    <div id="toast" class="toast">提示信息</div>
+
+    <script>
+        const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ4579";
+        const BASE = 30;
+        const SEPARATOR = "-"; 
+        let hanziArray = []; 
+        let toastTimeout; 
+
+        function showToast(message) {
+            const toast = document.getElementById("toast");
+            toast.innerText = message;
+            toast.className = "toast show"; 
+            if (toastTimeout) clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(function(){ 
+                toast.className = toast.className.replace("toast show", "toast"); 
+            }, 1500);
+        }
+
+        function copyText(elementId) {
+            let textToCopy = "";
+            let element = document.getElementById(elementId);
+
+            if (elementId === 'queryInput') {
+                textToCopy = element.value;
+            } else {
+                // innerText 会自动忽略 HTML 标签，获取纯文本，非常适合长按选择的内容
+                textToCopy = element.innerText;
+            }
+
+            if (!textToCopy) {
+                showToast("没有内容可复制！");
+                return;
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    showToast("✅ 复制成功");
+                }).catch(err => {
+                    fallbackCopy(textToCopy);
+                });
+            } else {
+                fallbackCopy(textToCopy);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                showToast("✅ 复制成功");
+            } catch (err) {
+                showToast("❌ 复制失败，请长按文字选择复制");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(event) { processText(event.target.result); };
+            reader.readAsText(file, "UTF-8");
+        });
+
+        function loadDemo() {
+            const demoText = "你\n好\n世\n界\n啊";
+            processText(demoText);
+        }
+
+        function processText(content) {
+            const lines = content.split(/\r?\n/);
+            hanziArray = [];
+            for (let line of lines) {
+                line = line.trim();
+                if (line && !line.startsWith('####') && line !== '﻿') {
+                    hanziArray.push(line);
+                }
+            }
+            document.getElementById('status').innerText = "✅ 成功加载 " + hanziArray.length + " 个字符";
+            document.getElementById('status').style.color = "#52c41a";
+            showToast("字典加载成功"); 
+            doQuery(); 
+        }
+
+        function indexToCode(index) {
+            let first = Math.floor(index / (BASE * BASE));
+            let second = Math.floor(index / BASE) % BASE;
+            let third = index % BASE;
+            return CHARS[first] + CHARS[second] + CHARS[third];
+        }
+
+        function codeToIndex(code) {
+            let first = CHARS.indexOf(code[0]);
+            let second = CHARS.indexOf(code[1]);
+            let third = CHARS.indexOf(code[2]);
+            if (first === -1 || second === -1 || third === -1) return -1;
+            return (first * BASE * BASE) + (second * BASE) + third;
+        }
+
+        function doQuery() {
+            const resultBox = document.getElementById('resultBox');
+            const resultContent = document.getElementById('resultContent');
+            const input = document.getElementById('queryInput').value.trim();
+
+            if (!input) {
+                resultBox.style.display = 'none';
+                return;
+            }
+
+            if (hanziArray.length === 0) {
+                resultContent.innerText = "请先在上方加载字典文件！";
+                resultBox.classList.add('error-box');
+                resultBox.style.display = 'block';
+                return;
+            }
+
+            resultBox.classList.remove('error-box');
+            const isCodeQuery = input.includes(SEPARATOR) || (/^[A-Z0-9\s,，.。！!？?]+$/i.test(input) && input.length > 3);
+
+            if (isCodeQuery) {
+                let resultText = "";
+                let i = 0;
+                while (i < input.length) {
+                    let chunk = input.substring(i, i + 3);
+                    if (chunk.length === 3 && /^[A-Z0-9]{3}$/i.test(chunk)) {
+                        let idx = codeToIndex(chunk.toUpperCase());
+                        if (idx >= 0 && idx < hanziArray.length) {
+                            resultText += hanziArray[idx];
+                            i += 3;
+                            if (input[i] === SEPARATOR) i++; 
+                            continue;
+                        }
+                    }
+                    resultText += input[i];
+                    i++;
+                }
+                resultContent.innerText = resultText;
+            } else {
+                let parts = [];
+                for (let i = 0; i < input.length; i++) {
+                    let char = input[i];
+                    let idx = hanziArray.indexOf(char);
+                    if (idx !== -1) {
+                        parts.push(indexToCode(idx));
+                    } else {
+                        parts.push(char); 
+                    }
+                }
+                
+                let finalStr = "";
+                for (let i = 0; i < parts.length; i++) {
+                    if (i > 0) {
+                        let prev = parts[i-1];
+                        let curr = parts[i];
+                        if (/^[A-Z0-9]{3}$/i.test(prev) && /^[A-Z0-9]{3}$/i.test(curr)) {
+                            finalStr += SEPARATOR;
+                        }
+                    }
+                    finalStr += parts[i];
+                }
+                resultContent.innerText = finalStr;
+            }
+            resultBox.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
