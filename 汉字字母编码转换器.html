@@ -1,80 +1,113 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>汉字字母编码转换器</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chinese Character Letter Encoding Converter (汉字字母编码转换器)</title>
     <style>
-        body { font-family: sans-serif; padding: 15px; background: #f0f2f5; }
-        .main-title { text-align: center; font-size: 22px; font-weight: bold; color: #333; margin: 10px 0 20px 0; }
-        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px; }
+        * { box-sizing: border-box; } /* 确保内边距不撑破屏幕 */
+        body { font-family: sans-serif; padding: 15px; background: #f0f2f5; margin: 0; }
+        .main-title { text-align: center; font-size: 18px; font-weight: bold; color: #333; margin: 10px 0 20px 0; line-height: 1.4; }
+        .card { background: white; padding: 15px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 15px; width: 100%; overflow: hidden; }
         h2 { text-align: left; color: #333; font-size: 16px; margin-top: 0; margin-bottom: 10px; font-weight: bold; }
         
-        .input-group { display: flex; gap: 10px; margin-bottom: 10px; }
-        
-        /* 确保输入框可以长按选择 */
-        input[type="text"] { 
-            flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; 
-            box-sizing: border-box; font-size: 16px; min-width: 0;
-            -webkit-user-select: text; user-select: text; /* 开启原生选择 */
+        /* 优化后的输入框布局 */
+        .input-wrapper { margin-bottom: 10px; }
+        textarea { 
+            width: 100%; 
+            height: 80px; /* 固定高度，超出会自动滚动或折行 */
+            padding: 12px; 
+            border: 1px solid #ccc; 
+            border-radius: 5px; 
+            font-size: 16px; 
+            font-family: inherit;
+            resize: none; /* 禁止用户手动拖拽改变大小 */
+            -webkit-user-select: text; user-select: text;
         }
+        textarea:focus { outline: none; border-color: #1890ff; }
         
-        button { padding: 10px 15px; background: #1890ff; color: white; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; white-space: nowrap; }
+        button { width: 100%; padding: 12px; background: #1890ff; color: white; border: none; border-radius: 5px; font-size: 15px; cursor: pointer; margin-bottom: 10px; }
         button:active { background: #096dd9; }
         .btn-green { background: #52c41a; }
         .btn-green:active { background: #389e0d; }
         .btn-grey { background: #8c8c8c; }
         .btn-grey:active { background: #595959; }
         
-        .result-box { margin-top: 15px; padding: 15px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 5px; display: none; }
-        
-        /* 确保输出结果区域可以长按选择 */
+        /* 优化后的结果框布局 */
+        .result-box { margin-top: 15px; padding: 15px; background: #e6f7ff; border: 1px solid #91d5ff; border-radius: 5px; display: none; width: 100%; overflow: hidden;}
         .result-content { 
-            font-size: 16px; word-break: break-all; line-height: 1.6; 
-            margin-bottom: 10px; color: #333; min-height: 24px;
-            -webkit-user-select: text; user-select: text; /* 开启原生选择 */
+            font-size: 16px; 
+            line-height: 1.6; 
+            margin-bottom: 15px; 
+            color: #333; 
+            min-height: 24px; 
+            /* 关键：保证长字符串和特殊符号能自动换行，不溢出屏幕 */
+            white-space: pre-wrap; 
+            word-wrap: break-word; 
+            word-break: break-all; 
+            -webkit-user-select: text; user-select: text; 
         }
-        
         .error-box { background: #fff1f0; border-color: #ffa39e; color: #cf1322; }
         #status { font-size: 14px; color: #1890ff; margin-top: 10px; }
 
-        /* 轻提示 (Toast) 的样式 */
-        .toast {
-            visibility: hidden; min-width: 120px; background-color: rgba(0, 0, 0, 0.75);
-            color: #fff; text-align: center; border-radius: 20px; padding: 10px 20px;
-            position: fixed; z-index: 999; left: 50%; bottom: 50px;
-            transform: translateX(-50%); font-size: 15px; opacity: 0;
-            transition: opacity 0.3s, bottom 0.3s;
-        }
+        /* 折叠指南样式 */
+        .guide-card { background: #fffbe6; border: 1px solid #ffe58f; } 
+        .guide-card details { cursor: pointer; }
+        .guide-card summary { font-size: 15px; font-weight: bold; color: #d46b08; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+        .guide-card summary::-webkit-details-marker { display: none; }
+        .guide-card summary::after { content: "▼"; font-size: 12px; transition: transform 0.2s; }
+        .guide-card details[open] summary::after { transform: rotate(180deg); }
+        .guide-content { margin-top: 15px; font-size: 13px; color: #555; line-height: 1.6; border-top: 1px dashed #ffe58f; padding-top: 10px; }
+        .guide-content ul { padding-left: 18px; margin: 5px 0; }
+        .guide-content li { margin-bottom: 6px; }
+        .highlight { color: #cf1322; font-weight: bold; }
+
+        .toast { visibility: hidden; min-width: 120px; background-color: rgba(0, 0, 0, 0.75); color: #fff; text-align: center; border-radius: 20px; padding: 10px 20px; position: fixed; z-index: 999; left: 50%; bottom: 50px; transform: translateX(-50%); font-size: 15px; opacity: 0; transition: opacity 0.3s, bottom 0.3s; }
         .toast.show { visibility: visible; opacity: 1; bottom: 80px; }
     </style>
 </head>
 <body>
 
-    <div class="main-title">汉字字母编码转换器</div>
+    <div class="main-title">Chinese Character Letter Encoding Converter<br>(汉字字母编码转换器)</div>
 
     <div class="card">
-        <h2>1. 加载字典</h2>
+        <h2>1. Load Dictionary (加载字典)</h2>
         <input type="file" id="fileInput" accept=".txt" style="width: 100%; margin-bottom: 10px; font-size: 14px;">
-        <button class="btn-green" style="width: 100%;" onclick="loadDemo()">没有文件？点我加载演示数据</button>
-        <div id="status">等待加载数据...</div>
+        <button class="btn-green" onclick="loadDemo()">No file? Load demo data (没有文件？加载演示数据)</button>
+        <div id="status">Waiting for data (等待加载)...</div>
     </div>
 
     <div class="card">
-        <h2>2. 实时转换</h2>
-        <div class="input-group">
-            <input type="text" id="queryInput" placeholder="输入汉字或编码，实时转换" oninput="doQuery()">
-            <button class="btn-grey" onclick="copyText('queryInput')">复制</button>
+        <h2>2. Real-time Conversion (实时转换)</h2>
+        <div class="input-wrapper">
+            <!-- 把 input 改成了 textarea，支持多行输入和自动换行 -->
+            <textarea id="queryInput" placeholder="Input text or code (输入文字或编码)" oninput="doQuery()"></textarea>
         </div>
+        <button class="btn-grey" onclick="copyText('queryInput')">Copy Input (复制输入)</button>
         
         <div id="resultBox" class="result-box">
-            <!-- 这个 div 现在也支持长按全选或部分选中了 -->
             <div id="resultContent" class="result-content"></div>
-            <button style="width: 100%;" onclick="copyText('resultContent')">一键复制结果</button>
+            <button onclick="copyText('resultContent')">Copy Result (复制结果)</button>
         </div>
     </div>
 
-    <div id="toast" class="toast">提示信息</div>
+    <div class="card guide-card">
+        <details>
+            <summary>📖 自定义字典指南 (Custom Dictionary Guide)</summary>
+            <div class="guide-content">
+                <p>当前系统基于 30 进制 3 位编码（26字母+4579），最多可容纳 <span class="highlight">27,000</span> 个字符。默认表为 21,003 字。<br>如果要替换自己的字典文件，请务必遵守以下规则：</p>
+                <ul>
+                    <li><strong>一行一字 (One per line)：</strong> 每个汉字独占一行，不可连续。</li>
+                    <li><strong>UTF-8 编码 (UTF-8)：</strong> 文本文件必须保存为 UTF-8 编码。</li>
+                    <li><strong>严禁重复 (No duplicates)：</strong> <span class="highlight">绝对不能有重复字</span>，否则会导致后续编码全部错位。</li>
+                    <li><strong>纯汉字 (Characters only)：</strong> 请勿包含标点或空格。程序会自动识别标点并原样保留。</li>
+                    <li><strong>顺序即密码 (Order matters)：</strong> 字典的顺序决定了编码，定版后请勿随意打乱。</li>
+                </ul>
+            </div>
+        </details>
+    </div>
+
+    <div id="toast" class="toast">Message</div>
 
     <script>
         const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ4579";
@@ -97,21 +130,21 @@
             let textToCopy = "";
             let element = document.getElementById(elementId);
 
+            // 兼容 input 和 textarea 的取值
             if (elementId === 'queryInput') {
                 textToCopy = element.value;
             } else {
-                // innerText 会自动忽略 HTML 标签，获取纯文本，非常适合长按选择的内容
                 textToCopy = element.innerText;
             }
 
             if (!textToCopy) {
-                showToast("没有内容可复制！");
+                showToast("Nothing to copy! (没有内容可复制)");
                 return;
             }
 
             if (navigator.clipboard && window.isSecureContext) {
                 navigator.clipboard.writeText(textToCopy).then(() => {
-                    showToast("✅ 复制成功");
+                    showToast("✅ Copied successfully (复制成功)");
                 }).catch(err => {
                     fallbackCopy(textToCopy);
                 });
@@ -130,9 +163,9 @@
             textArea.select();
             try {
                 document.execCommand('copy');
-                showToast("✅ 复制成功");
+                showToast("✅ Copied successfully (复制成功)");
             } catch (err) {
-                showToast("❌ 复制失败，请长按文字选择复制");
+                showToast("❌ Copy failed (复制失败, 请长按选择复制)");
             }
             document.body.removeChild(textArea);
         }
@@ -159,9 +192,9 @@
                     hanziArray.push(line);
                 }
             }
-            document.getElementById('status').innerText = "✅ 成功加载 " + hanziArray.length + " 个字符";
+            document.getElementById('status').innerText = "✅ Loaded (已加载) " + hanziArray.length + " characters";
             document.getElementById('status').style.color = "#52c41a";
-            showToast("字典加载成功"); 
+            showToast("Dictionary loaded (字典加载成功)"); 
             doQuery(); 
         }
 
@@ -183,68 +216,11 @@
         function doQuery() {
             const resultBox = document.getElementById('resultBox');
             const resultContent = document.getElementById('resultContent');
-            const input = document.getElementById('queryInput').value.trim();
+            const input = document.getElementById('queryInput').value.trim(); // 获取 textarea 里的值
 
             if (!input) {
                 resultBox.style.display = 'none';
                 return;
             }
 
-            if (hanziArray.length === 0) {
-                resultContent.innerText = "请先在上方加载字典文件！";
-                resultBox.classList.add('error-box');
-                resultBox.style.display = 'block';
-                return;
-            }
-
-            resultBox.classList.remove('error-box');
-            const isCodeQuery = input.includes(SEPARATOR) || (/^[A-Z0-9\s,，.。！!？?]+$/i.test(input) && input.length > 3);
-
-            if (isCodeQuery) {
-                let resultText = "";
-                let i = 0;
-                while (i < input.length) {
-                    let chunk = input.substring(i, i + 3);
-                    if (chunk.length === 3 && /^[A-Z0-9]{3}$/i.test(chunk)) {
-                        let idx = codeToIndex(chunk.toUpperCase());
-                        if (idx >= 0 && idx < hanziArray.length) {
-                            resultText += hanziArray[idx];
-                            i += 3;
-                            if (input[i] === SEPARATOR) i++; 
-                            continue;
-                        }
-                    }
-                    resultText += input[i];
-                    i++;
-                }
-                resultContent.innerText = resultText;
-            } else {
-                let parts = [];
-                for (let i = 0; i < input.length; i++) {
-                    let char = input[i];
-                    let idx = hanziArray.indexOf(char);
-                    if (idx !== -1) {
-                        parts.push(indexToCode(idx));
-                    } else {
-                        parts.push(char); 
-                    }
-                }
-                
-                let finalStr = "";
-                for (let i = 0; i < parts.length; i++) {
-                    if (i > 0) {
-                        let prev = parts[i-1];
-                        let curr = parts[i];
-                        if (/^[A-Z0-9]{3}$/i.test(prev) && /^[A-Z0-9]{3}$/i.test(curr)) {
-                            finalStr += SEPARATOR;
-                        }
-                    }
-                    finalStr += parts[i];
-                }
-                resultContent.innerText = finalStr;
-            }
-            resultBox.style.display = 'block';
-        }
-    </script>
-</body>
-</html>
+            if (hanziArray.l
